@@ -105,6 +105,59 @@ BEGIN { use_ok('Text::PromptBalanced','balance_factory') };
      "Closing metacharacters (not counting escaped versions) always balance");
 }
 # }}}
+# {{{ HTML tag
+{
+  my ($state,$b) =
+    balance_factory (
+      tag => { type => 'unbalanced', open => '<', close => '>' }
+    );
+  ok($b->(q[foo bar]) == 1,
+     "No metacharacters always balance");
+  ok($b->(q[<foobar>]) == 1,
+     "Balanced metacharacters always balance");
+  ok($b->(q[<foobar]) == 0,
+     "Open without close tag balances");
+  ok($state->{tag} == 1,
+     "Counted an open tag");
+  ok($b->(q[foobar>]) == 1,
+     "Rebalancing the metacharacter resets the counter");
+  ok($b->(q[<<foobar>]) == 1,
+     "Second open tag is ignored");
+  ok($b->(q[<<foobar]) == 0,
+     "Two open tags don't accidentally rebalance");
+  ok($state->{tag} == 1,
+     "Still only have one opening tag");
+  ok($b->(q[foobar>]) == 1,
+     "Closing metacharacters always balance");
+}
+# }}}
+# {{{ HTML tag and Escape
+{
+  my ($state,$b) =
+    balance_factory (
+      tag => { type => 'unbalanced', open => '<', close => '>' },
+      escape => 1
+    );
+  ok($b->(q[foo bar]) == 1,
+     "No metacharacters always balance");
+  ok($b->(q[<foobar>]) == 1,
+     "Balanced metacharacters always balance");
+  ok($b->(q[<foobar\>]) == 0,
+     "Escaped metacharacter is always ignored");
+  ok($state->{tag} == 1,
+     "Counted an open tag");
+  ok($b->(q[\>foobar>]) == 1,
+     "Rebalancing the metacharacter (ignoring the escape) resets the counter");
+  ok($b->(q[<<foobar\>>]) == 1,
+     "Second open tag is ignored, and escaped closing tag is ignored");
+  ok($b->(q[<<foobar]) == 0,
+     "Two open tags don't accidentally rebalance");
+  ok($state->{tag} == 1,
+     "Still only have one opening tag");
+  ok($b->(q[foobar>]) == 1,
+     "Closing metacharacters always balance");
+}
+# }}}
 # {{{ String
 {
   my ($state,$b) =
@@ -208,5 +261,22 @@ BEGIN { use_ok('Text::PromptBalanced','balance_factory') };
      "Unbalanced open parenthesis inside a string should be ignored");
   ok($b->(q<"foo) bar">) == 1,
      "Unbalanced closing parenthesis inside a string should be ignored");
+}
+# }}}
+# {{{ String and Comment with ignore
+{
+  my ($state,$b) =
+    balance_factory (
+      string => { type => 'toggle', open => '"' },
+      comment => { type => 'to-eol', open => '#', ignore_in => 'string' },
+    );
+  ok($b->(q<foo bar>) == 1,
+     "No metacharacters always balance");
+  ok($b->(q<"foo bar" #>) == 1,
+     "String followed by comment should still balance");
+  ok($b->(q<""foo bar#">) == 1,
+     "Quotes after the comment should be ignored");
+  ok($b->(q<"foo # bar">) == 1,
+     "Comments inside a quote should be ignored");
 }
 # }}}

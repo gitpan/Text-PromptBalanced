@@ -7,7 +7,7 @@ require Exporter;
 
 use vars qw(@ISA $VERSION @EXPORT_OK);
 @ISA = qw(Exporter);
-$VERSION = 0.01;
+$VERSION = 0.02;
 @EXPORT_OK = qw(balance_factory);
 
 # {{{ sub balance_factory
@@ -136,10 +136,15 @@ sub balance_factory {
         # }}}
         # {{{ Handle comments
         # Effectively skip to the end if a comment to the end of line is
-        # encountered.
+        # encountered, unless the comment should be ignored.
         #
-        last if $action->{$char}{type} eq 'to-eol' and
-                $action->{$char}{name} eq 'comment';
+        if($action->{$char}{type} eq 'to-eol' and
+           $action->{$char}{name} eq 'comment') {
+          for(@{$action->{$char}{ignore_in}}) {
+            next SPLIT if $state->{$_} > 0; 
+          }
+          last;
+        }
         # }}}
         # {{{ Handle ignore_in tags
         for(@{$action->{$char}{ignore_in}}) {
